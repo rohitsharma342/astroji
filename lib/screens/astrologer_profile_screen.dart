@@ -1,158 +1,207 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:table_calendar/table_calendar.dart';
-import '../constants/colors.dart';
-import '../constants/text_styles.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/astrologer.dart';
+import '../utils/constants.dart';
+import '../utils/helpers.dart';
 import 'booking_screen.dart';
 import 'chat_screen.dart';
 
-class AstrologerProfileScreen extends StatefulWidget {
+class AstrologerProfileScreen extends StatelessWidget {
   final Astrologer astrologer;
 
-  const AstrologerProfileScreen({Key? key, required this.astrologer}) : super(key: key);
-
-  @override
-  _AstrologerProfileScreenState createState() => _AstrologerProfileScreenState();
-}
-
-class _AstrologerProfileScreenState extends State<AstrologerProfileScreen> {
-  DateTime _selectedDay = DateTime.now();
-  DateTime _focusedDay = DateTime.now();
-  String? _selectedTime;
+  const AstrologerProfileScreen({super.key, required this.astrologer});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 200,
-            pinned: true,
-            backgroundColor: AppColors.primaryColor,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primaryColor, AppColors.primaryColor.withOpacity(0.8)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+          _buildSliverAppBar(),
+          _buildProfileInfo(),
+          _buildExpertiseSection(),
+          _buildAvailabilitySection(),
+          _buildReviewsSection(),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 300,
+      pinned: true,
+      backgroundColor: Colors.white,
+      leading: IconButton(
+        onPressed: () => Get.back(),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+        ),
+      ),
+      actions: [
+        IconButton(
+          onPressed: () {},
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.favorite_border, color: AppColors.textPrimary),
+          ),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primary,
+                AppColors.secondary,
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: astrologer.profileImage,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const CircularProgressIndicator(),
+                      errorWidget: (context, url, error) => const Icon(Icons.person),
+                    ),
                   ),
                 ),
-                child: Column(
+                const SizedBox(height: 16),
+                Text(
+                  astrologer.name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(height: 40),
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(widget.astrologer.profileImage),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: astrologer.isOnline ? AppColors.success : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(width: 8),
                     Text(
-                      widget.astrologer.name,
-                      style: AppTextStyles.heading1.copyWith(color: Colors.white),
-                    ),
-                    SizedBox(height: 5),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        RatingBarIndicator(
-                          rating: widget.astrologer.rating,
-                          itemBuilder: (context, index) => Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                          ),
-                          itemCount: 5,
-                          itemSize: 20,
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          '${widget.astrologer.rating} (${widget.astrologer.reviewCount} reviews)',
-                          style: AppTextStyles.bodyText.copyWith(color: Colors.white70),
-                        ),
-                      ],
+                      astrologer.isOnline ? 'Online' : 'Offline',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfo() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(AppConstants.defaultPadding),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatCard('Rating', astrologer.rating.toString(), Icons.star),
+                _buildStatCard('Reviews', astrologer.reviewCount.toString(), Icons.reviews),
+                _buildStatCard('Experience', '${astrologer.experience} years', Icons.timeline),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppConstants.defaultPadding),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildInfoSection(),
-                  SizedBox(height: 20),
-                  _buildExpertiseSection(),
-                  SizedBox(height: 20),
-                  _buildDescriptionSection(),
-                  SizedBox(height: 20),
-                  _buildAvailabilitySection(),
-                  SizedBox(height: 20),
-                  _buildReviewsSection(),
-                  SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: Offset(0, -5),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      astrologerId: widget.astrologer.id,
-                      astrologerName: widget.astrologer.name,
+                  const Text(
+                    'About',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ),
-                icon: Icon(Icons.chat, color: AppColors.primaryColor),
-                label: Text(
-                  'Chat',
-                  style: AppTextStyles.buttonText.copyWith(color: AppColors.primaryColor),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  side: BorderSide(color: AppColors.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+                  const SizedBox(height: 8),
+                  Text(
+                    astrologer.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
-                  minimumSize: Size(0, 50),
-                ),
-              ),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _selectedTime != null ? () => _navigateToBooking() : null,
-                icon: Icon(Icons.video_call, color: Colors.white),
-                label: Text('Book Now', style: AppTextStyles.buttonText),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Languages',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                  minimumSize: Size(0, 50),
-                ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: astrologer.languages
+                        .map((language) => Chip(
+                              label: Text(language),
+                              backgroundColor: AppColors.primary.withOpacity(0.1),
+                              side: const BorderSide(color: AppColors.primary),
+                            ))
+                        .toList(),
+                  ),
+                ],
               ),
             ),
           ],
@@ -161,90 +210,124 @@ class _AstrologerProfileScreenState extends State<AstrologerProfileScreen> {
     );
   }
 
-  Widget _buildInfoSection() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Experience', style: AppTextStyles.captionText),
-                  Text(widget.astrologer.experience, style: AppTextStyles.bodyText),
-                ],
-              ),
+  Widget _buildStatCard(String title, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Price per minute', style: AppTextStyles.captionText),
-                  Text('₹${widget.astrologer.price}', style: AppTextStyles.bodyText),
-                ],
-              ),
+          ),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
             ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: widget.astrologer.isOnline ? AppColors.successColor : AppColors.errorColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                widget.astrologer.isOnline ? 'Online' : 'Offline',
-                style: AppTextStyles.captionText.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildExpertiseSection() {
-    return Card(
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.defaultPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Expertise', style: AppTextStyles.heading2),
-            SizedBox(height: 10),
+            const Text(
+              'Expertise',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
-              children: widget.astrologer.expertise.map((expertise) {
-                return Chip(
-                  label: Text(expertise),
-                  backgroundColor: AppColors.secondaryColor,
-                  labelStyle: AppTextStyles.captionText.copyWith(
-                    color: AppColors.primaryColor,
+              runSpacing: 8,
+              children: astrologer.expertise
+                  .map((expertise) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          expertise,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      border: Border.all(color: AppColors.accent),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.currency_rupee,
+                          color: AppColors.accent,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          PriceHelper.formatPricePerMinute(astrologer.pricePerMinute),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const Text(
+                          'Consultation Fee',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
-            SizedBox(height: 10),
-            Text('Languages', style: AppTextStyles.bodyText),
-            Text(
-              widget.astrologer.languages.join(', '),
-              style: AppTextStyles.captionText,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDescriptionSection() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('About', style: AppTextStyles.heading2),
-            SizedBox(height: 10),
-            Text(widget.astrologer.description, style: AppTextStyles.bodyText),
           ],
         ),
       ),
@@ -252,69 +335,61 @@ class _AstrologerProfileScreenState extends State<AstrologerProfileScreen> {
   }
 
   Widget _buildAvailabilitySection() {
-    return Card(
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Select Date & Time', style: AppTextStyles.heading2),
-            SizedBox(height: 10),
-            TableCalendar<String>(
-              firstDay: DateTime.now(),
-              lastDay: DateTime.now().add(Duration(days: 30)),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                  _selectedTime = null;
-                });
-              },
-              calendarStyle: CalendarStyle(
-                outsideDaysVisible: false,
-                selectedDecoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
-                ),
-                todayDecoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              headerStyle: HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
+            const Text(
+              'Available Time Slots',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 20),
-            Text('Available Times', style: AppTextStyles.bodyText),
-            SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              children: widget.astrologer.availableTimes.map((time) {
-                final isSelected = _selectedTime == time;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedTime = time),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            const SizedBox(height: 12),
+            Container(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: astrologer.availableSlots.take(10).length,
+                itemBuilder: (context, index) {
+                  final slot = astrologer.availableSlots[index];
+                  return Container(
+                    width: 120,
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primaryColor : Colors.white,
-                      border: Border.all(
-                        color: isSelected ? AppColors.primaryColor : AppColors.dividerColor,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: Text(
-                      time,
-                      style: AppTextStyles.bodyText.copyWith(
-                        color: isSelected ? Colors.white : AppColors.textPrimary,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          DateHelper.formatDate(slot),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateHelper.formatTime(slot),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -323,43 +398,101 @@ class _AstrologerProfileScreenState extends State<AstrologerProfileScreen> {
   }
 
   Widget _buildReviewsSection() {
-    return Card(
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppConstants.defaultPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Reviews', style: AppTextStyles.heading2),
-            SizedBox(height: 10),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              separatorBuilder: (context, index) => Divider(),
-              itemBuilder: (context, index) {
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    child: Text('U${index + 1}'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Reviews',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
-                  title: Row(
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('View All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 3,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('User ${index + 1}', style: AppTextStyles.bodyText),
-                      SizedBox(width: 10),
-                      RatingBarIndicator(
-                        rating: 4.5 + (index * 0.1),
-                        itemBuilder: (context, index) => Icon(
-                          Icons.star,
-                          color: Colors.amber,
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 20,
+                            backgroundImage: NetworkImage(
+                              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'User Name',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                RatingBar.builder(
+                                  initialRating: 4.5,
+                                  minRating: 1,
+                                  direction: Axis.horizontal,
+                                  allowHalfRating: true,
+                                  itemCount: 5,
+                                  itemSize: 16,
+                                  itemPadding: const EdgeInsets.symmetric(horizontal: 1),
+                                  itemBuilder: (context, _) => const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                  ),
+                                  onRatingUpdate: (rating) {},
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '2 days ago',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Excellent consultation! Very accurate predictions and helpful guidance. Highly recommend.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          height: 1.4,
                         ),
-                        itemCount: 5,
-                        itemSize: 16,
                       ),
                     ],
-                  ),
-                  subtitle: Text(
-                    'Great consultation! Very insightful and helpful.',
-                    style: AppTextStyles.captionText,
                   ),
                 );
               },
@@ -370,15 +503,52 @@ class _AstrologerProfileScreenState extends State<AstrologerProfileScreen> {
     );
   }
 
-  void _navigateToBooking() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BookingScreen(
-          astrologer: widget.astrologer,
-          selectedDate: _selectedDay,
-          selectedTime: _selectedTime!,
-        ),
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 1,
+            child: OutlinedButton.icon(
+              onPressed: () => Get.to(() => ChatScreen(astrologer: astrologer)),
+              icon: const Icon(Icons.chat_outlined),
+              label: const Text('Chat'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: astrologer.isAvailable
+                  ? () => Get.to(() => BookingScreen(astrologer: astrologer))
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                astrologer.isAvailable ? 'Book Now' : 'Not Available',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

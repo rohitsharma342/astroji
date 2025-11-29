@@ -1,12 +1,14 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
-import '../constants/text_styles.dart';
+import 'package:get/get.dart';
+import '../controllers/auth_controller.dart';
+import '../utils/constants.dart';
 import 'dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen>
@@ -15,14 +17,21 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
+  final AuthController authController = Get.put(AuthController());
+
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
+    _navigateToNextScreen();
+  }
+
+  void _setupAnimations() {
     _animationController = AnimationController(
-      duration: Duration(seconds: 2),
+      duration: const Duration(seconds: 2),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -30,22 +39,23 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _animationController,
       curve: Curves.easeIn,
     ));
-    
+
     _scaleAnimation = Tween<double>(
-      begin: 0.5,
+      begin: 0.8,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.elasticOut,
     ));
-    
+
     _animationController.forward();
-    
-    Timer(Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => DashboardScreen()),
-      );
+  }
+
+  void _navigateToNextScreen() {
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        Get.off(() => const DashboardScreen());
+      }
     });
   }
 
@@ -58,72 +68,91 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryColor,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(60),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 20,
-                            offset: Offset(0, 10),
+      backgroundColor: AppColors.primary,
+      body: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.primary,
+                  AppColors.secondary,
+                ],
+              ),
+            ),
+            child: Center(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 2,
                           ),
-                        ],
+                        ),
+                        child: const Icon(
+                          Icons.star,
+                          size: 80,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.auto_awesome,
-                        size: 60,
-                        color: AppColors.primaryColor,
+                      const SizedBox(height: 32),
+                      const Text(
+                        AppStrings.appName,
+                        style: TextStyle(
+                          fontSize: 42,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 30),
-                    Text(
-                      'Astroji',
-                      style: AppTextStyles.heading1.copyWith(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 12),
+                      Text(
+                        'Connect with Expert Astrologers',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w300,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Connect with Expert Astrologers',
-                      style: AppTextStyles.bodyText.copyWith(
-                        color: Colors.white70,
-                        fontSize: 16,
+                      const SizedBox(height: 60),
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withOpacity(0.7),
+                          ),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 50),
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                    SizedBox(height: 30),
-                    Text(
-                      'Made With BrainBox',
-                      style: AppTextStyles.captionText.copyWith(
-                        color: Colors.white60,
+                      const SizedBox(height: 24),
+                      Text(
+                        AppStrings.tagline,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                          letterSpacing: 1,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

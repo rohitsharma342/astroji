@@ -1,382 +1,560 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
-import '../constants/colors.dart';
-import '../constants/text_styles.dart';
+import 'package:get/get.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/astrologer.dart';
 import '../models/booking.dart';
-import '../services/data_service.dart';
-import 'dashboard_screen.dart';
+import '../utils/constants.dart';
+import '../utils/helpers.dart';
 
 class BookingScreen extends StatefulWidget {
   final Astrologer astrologer;
-  final DateTime selectedDate;
-  final String selectedTime;
 
-  const BookingScreen({
-    Key? key,
-    required this.astrologer,
-    required this.selectedDate,
-    required this.selectedTime,
-  }) : super(key: key);
+  const BookingScreen({super.key, required this.astrologer});
 
   @override
-  _BookingScreenState createState() => _BookingScreenState();
+  State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  String _selectedConsultationType = 'Video Call';
-  String _selectedPaymentMethod = 'UPI';
-  final List<String> _consultationTypes = ['Video Call', 'Audio Call', 'Chat'];
-  final List<String> _paymentMethods = ['UPI', 'Credit Card', 'Debit Card', 'Net Banking'];
-  bool _isBooking = false;
+  DateTime selectedDate = DateTime.now();
+  DateTime? selectedTime;
+  ConsultationType selectedType = ConsultationType.chat;
+  String selectedPaymentMethod = 'razorpay';
+  bool isLoading = false;
+
+  final Map<ConsultationType, String> consultationTypes = {
+    ConsultationType.chat: 'Chat',
+    ConsultationType.voice: 'Voice Call',
+    ConsultationType.video: 'Video Call',
+  };
+
+  final Map<ConsultationType, double> typeMultipliers = {
+    ConsultationType.chat: 1.0,
+    ConsultationType.voice: 1.2,
+    ConsultationType.video: 1.5,
+  };
+
+  final Map<String, String> paymentMethods = {
+    'razorpay': 'Razorpay',
+    'paytm': 'Paytm',
+    'googlepay': 'Google Pay',
+    'phonepe': 'PhonePe',
+  };
 
   @override
   Widget build(BuildContext context) {
-    final duration = _selectedConsultationType == 'Chat' ? 30 : 15;
-    final totalAmount = widget.astrologer.price * duration;
-
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Book Consultation'),
+        title: const Text('Book Consultation'),
         backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAstrologerSummary(),
-            SizedBox(height: 20),
-            _buildBookingDetails(),
-            SizedBox(height: 20),
-            _buildConsultationTypeSection(),
-            SizedBox(height: 20),
-            _buildPaymentSection(),
-            SizedBox(height: 20),
-            _buildPriceSummary(duration, totalAmount),
-            SizedBox(height: 30),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: Offset(0, -5),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppConstants.defaultPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAstrologerSummary(),
+                  const SizedBox(height: 24),
+                  _buildDateSelection(),
+                  const SizedBox(height: 24),
+                  _buildTimeSelection(),
+                  const SizedBox(height: 24),
+                  _buildConsultationTypeSelection(),
+                  const SizedBox(height: 24),
+                  _buildPaymentMethodSelection(),
+                  const SizedBox(height: 24),
+                  _buildPriceSummary(),
+                ],
+              ),
             ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: _isBooking ? null : () => _confirmBooking(totalAmount),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
-            ),
-            minimumSize: Size(double.infinity, 55),
           ),
-          child: _isBooking
-              ? CircularProgressIndicator(color: Colors.white)
-              : Text(
-                  'Confirm Booking - ₹${totalAmount.toStringAsFixed(0)}',
-                  style: AppTextStyles.buttonText,
-                ),
-        ),
+          _buildBottomBar(),
+        ],
       ),
     );
   }
 
   Widget _buildAstrologerSummary() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: NetworkImage(widget.astrologer.profileImage),
-            ),
-            SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.astrologer.name, style: AppTextStyles.heading2),
-                  SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.amber, size: 16),
-                      SizedBox(width: 5),
-                      Text(
-                        '${widget.astrologer.rating} (${widget.astrologer.reviewCount})',
-                        style: AppTextStyles.captionText,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    widget.astrologer.expertise.join(', '),
-                    style: AppTextStyles.captionText,
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.successColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Online',
-                style: AppTextStyles.captionText.copyWith(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(color: Colors.grey[300]!),
       ),
-    );
-  }
-
-  Widget _buildBookingDetails() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Booking Details', style: AppTextStyles.heading2),
-            SizedBox(height: 15),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, color: AppColors.primaryColor),
-                SizedBox(width: 10),
-                Text(
-                  DateFormat('EEEE, MMM dd, yyyy').format(widget.selectedDate),
-                  style: AppTextStyles.bodyText,
-                ),
-              ],
+      child: Row(
+        children: [
+          ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: widget.astrologer.profileImage,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const CircularProgressIndicator(),
+              errorWidget: (context, url, error) => const Icon(Icons.person),
             ),
-            SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(Icons.access_time, color: AppColors.primaryColor),
-                SizedBox(width: 10),
-                Text(widget.selectedTime, style: AppTextStyles.bodyText),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConsultationTypeSection() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Consultation Type', style: AppTextStyles.heading2),
-            SizedBox(height: 15),
-            Column(
-              children: _consultationTypes.map((type) {
-                return RadioListTile<String>(
-                  title: Text(type),
-                  value: type,
-                  groupValue: _selectedConsultationType,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedConsultationType = value!;
-                    });
-                  },
-                  activeColor: AppColors.primaryColor,
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentSection() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Payment Method', style: AppTextStyles.heading2),
-            SizedBox(height: 15),
-            Column(
-              children: _paymentMethods.map((method) {
-                return RadioListTile<String>(
-                  title: Text(method),
-                  value: method,
-                  groupValue: _selectedPaymentMethod,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedPaymentMethod = value!;
-                    });
-                  },
-                  activeColor: AppColors.primaryColor,
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceSummary(int duration, double totalAmount) {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Price Summary', style: AppTextStyles.heading2),
-            SizedBox(height: 15),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Duration', style: AppTextStyles.bodyText),
-                Text('$duration minutes', style: AppTextStyles.bodyText),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Rate per minute', style: AppTextStyles.bodyText),
-                Text('₹${widget.astrologer.price}', style: AppTextStyles.bodyText),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Taxes & Fees', style: AppTextStyles.bodyText),
-                Text('₹0', style: AppTextStyles.bodyText),
-              ],
-            ),
-            Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Total Amount', style: AppTextStyles.heading2),
-                Text(
-                  '₹${totalAmount.toStringAsFixed(0)}',
-                  style: AppTextStyles.heading2.copyWith(color: AppColors.primaryColor),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmBooking(double totalAmount) async {
-    setState(() {
-      _isBooking = true;
-    });
-
-    // Simulate payment processing
-    await Future.delayed(Duration(seconds: 2));
-
-    final booking = Booking(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      astrologer: widget.astrologer,
-      dateTime: DateTime(
-        widget.selectedDate.year,
-        widget.selectedDate.month,
-        widget.selectedDate.day,
-        int.parse(widget.selectedTime.split(':')[0]),
-        int.parse(widget.selectedTime.split(':')[1].split(' ')[0]),
-      ),
-      consultationType: _selectedConsultationType,
-      amount: totalAmount,
-      status: 'Confirmed',
-    );
-
-    Provider.of<DataService>(context, listen: false).addBooking(booking);
-
-    setState(() {
-      _isBooking = false;
-    });
-
-    _showSuccessDialog();
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.successColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check,
-                  color: Colors.white,
-                  size: 40,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Booking Confirmed!',
-                style: AppTextStyles.heading2,
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Your consultation with ${widget.astrologer.name} has been confirmed.',
-                style: AppTextStyles.bodyText,
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => DashboardScreen()),
-                    (route) => false,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.astrologer.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                child: Text('Go to Dashboard', style: AppTextStyles.buttonText),
+                const SizedBox(height: 4),
+                Text(
+                  widget.astrologer.expertise.join(', '),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${widget.astrologer.rating} (${widget.astrologer.reviewCount} reviews)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Date',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: TableCalendar(
+            firstDay: DateTime.now(),
+            lastDay: DateTime.now().add(const Duration(days: 30)),
+            focusedDay: selectedDate,
+            selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+            calendarFormat: CalendarFormat.month,
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                selectedDate = selectedDay;
+                selectedTime = null;
+              });
+            },
+            calendarStyle: const CalendarStyle(
+              outsideDaysVisible: false,
+              selectedDecoration: BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: AppColors.secondary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeSelection() {
+    final availableTimes = widget.astrologer.availableSlots
+        .where((slot) => isSameDay(slot, selectedDate))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select Time',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (availableTimes.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: const Text(
+              'No available slots for this date',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: availableTimes.map((time) {
+              final isSelected = selectedTime != null && 
+                  selectedTime!.hour == time.hour &&
+                  selectedTime!.minute == time.minute;
+              
+              return GestureDetector(
+                onTap: () => setState(() => selectedTime = time),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Text(
+                    DateHelper.formatTime(time),
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildConsultationTypeSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Consultation Type',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: consultationTypes.entries.map((entry) {
+            final type = entry.key;
+            final label = entry.value;
+            final multiplier = typeMultipliers[type] ?? 1.0;
+            final price = widget.astrologer.pricePerMinute * multiplier;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: RadioListTile<ConsultationType>(
+                value: type,
+                groupValue: selectedType,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => selectedType = value);
+                  }
+                },
+                title: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  PriceHelper.formatPricePerMinute(price),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                activeColor: AppColors.primary,
+                tileColor: AppColors.background,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethodSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Payment Method',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: paymentMethods.entries.map((entry) {
+            final method = entry.key;
+            final label = entry.value;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: RadioListTile<String>(
+                value: method,
+                groupValue: selectedPaymentMethod,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => selectedPaymentMethod = value);
+                  }
+                },
+                title: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                activeColor: AppColors.primary,
+                tileColor: AppColors.background,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceSummary() {
+    final multiplier = typeMultipliers[selectedType] ?? 1.0;
+    final basePrice = widget.astrologer.pricePerMinute * multiplier;
+    final sessionMinutes = 30; // Default session duration
+    final subtotal = basePrice * sessionMinutes;
+    final tax = subtotal * 0.18; // 18% GST
+    final total = subtotal + tax;
+
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Price Summary',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${consultationTypes[selectedType]} ($sessionMinutes mins)',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                PriceHelper.formatPrice(subtotal),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'GST (18%)',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                PriceHelper.formatPrice(tax),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                PriceHelper.formatPrice(total),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildBottomBar() {
+    final canBook = selectedTime != null;
+    
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: canBook && !isLoading ? _confirmBooking : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text(
+                  'Confirm Booking',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmBooking() async {
+    if (selectedTime == null) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      // Simulate payment process
+      await Future.delayed(const Duration(seconds: 2));
+
+      final booking = Booking(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: 'user_1',
+        astrologerId: widget.astrologer.id,
+        dateTime: selectedTime!,
+        type: selectedType,
+        status: BookingStatus.confirmed,
+        amount: _calculateTotal(),
+        createdAt: DateTime.now(),
+        astrologer: widget.astrologer,
+      );
+
+      Get.back();
+      Get.snackbar(
+        'Booking Confirmed',
+        'Your consultation has been booked successfully!',
+        backgroundColor: AppColors.success,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Booking Failed',
+        'There was an error processing your booking. Please try again.',
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  double _calculateTotal() {
+    final multiplier = typeMultipliers[selectedType] ?? 1.0;
+    final basePrice = widget.astrologer.pricePerMinute * multiplier;
+    final sessionMinutes = 30;
+    final subtotal = basePrice * sessionMinutes;
+    final tax = subtotal * 0.18;
+    return subtotal + tax;
   }
 }

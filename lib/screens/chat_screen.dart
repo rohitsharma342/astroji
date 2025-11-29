@@ -1,171 +1,270 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
-import '../constants/colors.dart';
-import '../constants/text_styles.dart';
-import '../models/message.dart';
-import '../services/data_service.dart';
+import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/astrologer.dart';
+import '../controllers/chat_controller.dart';
 import '../widgets/message_bubble.dart';
+import '../utils/constants.dart';
+import '../utils/helpers.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String astrologerId;
-  final String astrologerName;
+  final Astrologer astrologer;
 
-  const ChatScreen({
-    Key? key,
-    required this.astrologerId,
-    required this.astrologerName,
-  }) : super(key: key);
+  const ChatScreen({super.key, required this.astrologer});
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  bool _isTyping = false;
+  late final ChatController chatController;
+  final TextEditingController messageController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    chatController = Get.put(ChatController(widget.astrologer.id));
+  }
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundImage: NetworkImage(
-                'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-              ),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.astrologerName,
-                    style: AppTextStyles.bodyText.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    'Online',
-                    style: AppTextStyles.captionText.copyWith(
-                      color: AppColors.successColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.videocam),
-            onPressed: () => _startVideoCall(),
-          ),
-          IconButton(
-            icon: Icon(Icons.call),
-            onPressed: () => _startAudioCall(),
-          ),
-          PopupMenuButton(
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                child: Text('View Profile'),
-                onTap: () {},
-              ),
-              PopupMenuItem(
-                child: Text('Block User'),
-                onTap: () {},
-              ),
-            ],
-          ),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(
-            child: Consumer<DataService>(
-              builder: (context, dataService, child) {
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.all(16),
-                  itemCount: dataService.messages.length + (_isTyping ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == dataService.messages.length && _isTyping) {
-                      return _buildTypingIndicator();
-                    }
-                    
-                    final message = dataService.messages[index];
-                    return MessageBubble(
-                      message: message,
-                      isFromUser: message.isFromUser,
-                    );
-                  },
-                );
-              },
+            child: Obx(() => chatController.isLoading.value
+                ? const Center(child: CircularProgressIndicator())
+                : _buildMessageList(),
             ),
           ),
+          _buildTypingIndicator(),
           _buildMessageInput(),
         ],
       ),
     );
   }
 
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 1,
+      leading: IconButton(
+        onPressed: () => Get.back(),
+        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+      ),
+      title: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey[300]!, width: 2),
+            ),
+            child: ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: widget.astrologer.profileImage,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const CircularProgressIndicator(),
+                errorWidget: (context, url, error) => const Icon(Icons.person),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.astrologer.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: widget.astrologer.isOnline 
+                            ? AppColors.success 
+                            : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.astrologer.isOnline ? 'Online' : 'Offline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          onPressed: _makeVoiceCall,
+          icon: const Icon(Icons.call, color: AppColors.textPrimary),
+        ),
+        IconButton(
+          onPressed: _makeVideoCall,
+          icon: const Icon(Icons.videocam, color: AppColors.textPrimary),
+        ),
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMessageList() {
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
+      itemCount: chatController.messages.length,
+      itemBuilder: (context, index) {
+        final message = chatController.messages[index];
+        return MessageBubble(
+          message: message,
+          isFromMe: message.isFromMe,
+        );
+      },
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Obx(() {
+      if (!chatController.isTyping.value) {
+        return const SizedBox.shrink();
+      }
+      
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppConstants.defaultPadding,
+          vertical: 8,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: CachedNetworkImage(
+                  imageUrl: widget.astrologer.profileImage,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const CircularProgressIndicator(),
+                  errorWidget: (context, url, error) => const Icon(Icons.person),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (int i = 0; i < 3; i++)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[600],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   Widget _buildMessageInput() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppConstants.defaultPadding),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 5,
-            offset: Offset(0, -2),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
           ),
         ],
       ),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.attach_file, color: AppColors.primaryColor),
-            onPressed: () => _showAttachmentOptions(),
+            onPressed: _attachFile,
+            icon: const Icon(
+              Icons.attach_file,
+              color: AppColors.textSecondary,
+            ),
           ),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.backgroundColor,
+                color: AppColors.background,
                 borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: Colors.grey[300]!),
               ),
               child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
+                controller: messageController,
+                maxLines: null,
+                decoration: const InputDecoration(
                   hintText: 'Type a message...',
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
+                    horizontal: 16,
+                    vertical: 8,
                   ),
                 ),
-                maxLines: null,
-                onChanged: (value) {
-                  // Handle typing indicator
-                },
+                onSubmitted: (value) => _sendMessage(),
               ),
             ),
           ),
-          SizedBox(width: 8),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
+          const SizedBox(width: 8),
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: _sendMessage,
+              icon: const Icon(
                 Icons.send,
                 color: Colors.white,
                 size: 20,
@@ -177,147 +276,59 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildTypingIndicator() {
-    return Container(
-      margin: EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 15,
-            backgroundImage: NetworkImage(
-              'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150',
-            ),
-          ),
-          SizedBox(width: 10),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Typing', style: AppTextStyles.captionText),
-                SizedBox(width: 5),
-                SizedBox(
-                  width: 15,
-                  height: 15,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    final message = Message(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      senderId: 'user1',
-      receiverId: widget.astrologerId,
-      content: text,
-      timestamp: DateTime.now(),
-      isFromUser: true,
-    );
-
-    Provider.of<DataService>(context, listen: false).addMessage(message);
-    _messageController.clear();
-
-    // Simulate astrologer response
-    _simulateResponse();
-
-    // Scroll to bottom
-    Future.delayed(Duration(milliseconds: 100), () {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  void _simulateResponse() {
-    setState(() {
-      _isTyping = true;
-    });
-
-    Future.delayed(Duration(seconds: 2), () {
-      final responses = [
-        'Thank you for sharing that information.',
-        'Based on your birth chart, I can see some interesting patterns.',
-        'Let me analyze this further for you.',
-        'I understand your concern. Let me help you with that.',
-        'Your planetary positions suggest...',
-      ];
-
-      final randomResponse = responses[DateTime.now().millisecondsSinceEpoch % responses.length];
+    final text = messageController.text.trim();
+    if (text.isNotEmpty) {
+      chatController.sendMessage(text);
+      messageController.clear();
       
-      final response = Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        senderId: widget.astrologerId,
-        receiverId: 'user1',
-        content: randomResponse,
-        timestamp: DateTime.now(),
-        isFromUser: false,
-      );
-
-      Provider.of<DataService>(context, listen: false).addMessage(response);
-      
-      setState(() {
-        _isTyping = false;
-      });
-
       // Scroll to bottom
-      Future.delayed(Duration(milliseconds: 100), () {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (scrollController.hasClients) {
+          scrollController.animateTo(
+            scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       });
-    });
+    }
   }
 
-  void _showAttachmentOptions() {
+  void _attachFile() {
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (context) {
         return Container(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Select Attachment', style: AppTextStyles.heading2),
-              SizedBox(height: 20),
+              const Text(
+                'Share',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildAttachmentOption(
-                    icon: Icons.camera_alt,
-                    label: 'Camera',
-                    onTap: () => Navigator.pop(context),
+                    Icons.camera_alt,
+                    'Camera',
+                    () => Get.back(),
                   ),
                   _buildAttachmentOption(
-                    icon: Icons.photo_library,
-                    label: 'Gallery',
-                    onTap: () => Navigator.pop(context),
+                    Icons.photo_library,
+                    'Gallery',
+                    () => Get.back(),
                   ),
                   _buildAttachmentOption(
-                    icon: Icons.insert_drive_file,
-                    label: 'Document',
-                    onTap: () => Navigator.pop(context),
+                    Icons.insert_drive_file,
+                    'Document',
+                    () => Get.back(),
                   ),
                 ],
               ),
@@ -328,11 +339,11 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildAttachmentOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildAttachmentOption(
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -341,66 +352,43 @@ class _ChatScreenState extends State<ChatScreen> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: AppColors.secondaryColor,
+              color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: AppColors.primaryColor,
+              color: AppColors.primary,
               size: 30,
             ),
           ),
-          SizedBox(height: 8),
-          Text(label, style: AppTextStyles.captionText),
-        ],
-      ),
-    );
-  }
-
-  void _startVideoCall() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Video Call'),
-        content: Text('Starting video call with ${widget.astrologerName}...'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Start Call'),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _startAudioCall() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Audio Call'),
-        content: Text('Starting audio call with ${widget.astrologerName}...'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Start Call'),
-          ),
-        ],
-      ),
+  void _makeVoiceCall() {
+    Get.snackbar(
+      'Voice Call',
+      'Starting voice call with ${widget.astrologer.name}...',
+      backgroundColor: AppColors.primary,
+      colorText: Colors.white,
     );
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void _makeVideoCall() {
+    Get.snackbar(
+      'Video Call',
+      'Starting video call with ${widget.astrologer.name}...',
+      backgroundColor: AppColors.primary,
+      colorText: Colors.white,
+    );
   }
 }
