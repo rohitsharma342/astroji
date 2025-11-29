@@ -68,7 +68,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.red,
       body: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {
@@ -78,8 +78,8 @@ class _SplashScreenState extends State<SplashScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary,
-                  AppColors.secondary,
+                  Colors.red,
+                  Colors.redAccent,
                 ],
               ),
             ),
