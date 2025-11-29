@@ -314,8 +314,9 @@ class AstrologerCard extends StatelessWidget {
             ),
           ],
         ),
-        if (isHorizontal) ..[
+        if (isHorizontal)
           const SizedBox(width: 12),
+        if (isHorizontal)
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -330,7 +331,6 @@ class AstrologerCard extends StatelessWidget {
               size: 16,
             ),
           ),
-        ],
       ],
     );
   }
